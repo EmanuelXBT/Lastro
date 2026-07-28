@@ -27,6 +27,7 @@ state.db-wal
 .env
 *.log
 auth.json
+.tz
 
 # Output local (gerado pelos coletores)
 obsidian-vault/

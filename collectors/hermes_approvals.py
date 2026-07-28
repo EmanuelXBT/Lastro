@@ -18,6 +18,7 @@ from ..schemas import (
     SessionWideAuth, CollectorResult
 )
 from ..vault import VaultManager
+from ..tz import get_local_tz_name, local_now, utc_to_local
 
 HISTORICO_FILENAME = "Historico_Aprovacoes.md"
 
@@ -224,7 +225,8 @@ def _detect_session_wide(terminal_events: list, sessions: dict) -> list:
             session_id=sid, session_title=s.title,
             date=sess_events[0].date, count=len(sess_events),
             duration_min=round(duration_min, 1),
-            first_approval=sess_events[0].timestamp.isoformat(),
+            first_approval=sess_events[0].local_datetime_str,
+            first_approval_time=sess_events[0].local_time_str,
         ))
     return results
 
@@ -252,7 +254,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
     lines = [
         "# 📋 Histórico de Aprovações — Hermes Agent", "",
         "> Registro **automatizado** de comandos que exigiram aprovação do usuário.",
-        f"> Última sincronização: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+        f"> Última sincronização: {local_now().strftime('%Y-%m-%d %H:%M')} {get_local_tz_name()}",
         f"> Total: {len(all_events)} eventos de aprovação registrados", "",
         "---", "",
     ]
@@ -277,13 +279,14 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
         for proj, proj_events in sorted(month_by_project.items()):
             lines.append(f"### 🔧 {proj}")
             lines.append("")
-            lines.append("| Data | Comando/Ação | Status | Sessão |")
-            lines.append("|---|---|---|---|")
+            lines.append("| Data | Hora | Comando/Ação | Status | Sessão |")
+            lines.append("|---|---|---|---|---|")
             for e in sorted(proj_events, key=lambda x: x.timestamp):
                 date_link = VaultManager.wikilink(e.date)
                 s = sessions.get(e.session_id, SessionInfo(session_id=e.session_id))
                 lines.append(
-                    f"| {date_link} | {e.risk_summary[:80]} "
+                    f"| {date_link} | {e.local_time_str} "
+                    f"| {e.risk_summary[:80]} "
                     f"| {e.status.emoji} {e.status.label} | `{s.short_id}` |"
                 )
             lines.append("")
@@ -309,12 +312,13 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
             "## 🔓 Sessões com Autorização em Lote", "",
             "> Sessões onde múltiplos comandos foram autorizados em sequência "
             "(possível YOLO / aprovação para sessão inteira).", "",
-            "| Data | Sessão | Comandos | Duração |",
-            "|---|---|---|---|",
+            "| Data | Hora | Sessão | Comandos | Duração |",
+            "|---|---|---|---|---|",
         ])
         for sw in sorted(wide_auths, key=lambda x: x.date, reverse=True):
             lines.append(
-                f"| {VaultManager.wikilink(sw.date)} | {sw.session_title} "
+                f"| {VaultManager.wikilink(sw.date)} | {sw.first_approval_time} "
+                f"| {sw.session_title} "
                 f"| {sw.count} | {sw.duration_min} min |"
             )
         lines.append("")
@@ -371,7 +375,7 @@ def _render_date_note(date_str: str, events: list, sessions: dict,
             if e.command:
                 lines.append(f"- **Comando:** `{e.command}`")
             lines.extend([
-                f"- **Horário:** {e.time_str}",
+                f"- **Horário:** {e.local_datetime_str} {get_local_tz_name()}",
                 f"- **Fonte:** {e.source}", "",
                 "```", e.risk_full, "```", "",
             ])
@@ -383,7 +387,7 @@ def _render_date_note(date_str: str, events: list, sessions: dict,
             lines.extend([
                 f"### {e.status.emoji} {e.risk_summary}", "",
                 f"- **Sessão:** `{e.session_id}`",
-                f"- **Horário:** {e.time_str}", "",
+                f"- **Horário:** {e.local_datetime_str} {get_local_tz_name()}", "",
                 "```", e.risk_full, "```", "",
             ])
 

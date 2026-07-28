@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
+from .tz import get_local_tz
+
 
 class ApprovalStatus(str, Enum):
     APPROVED = "approved"
@@ -88,7 +90,23 @@ class ApprovalEvent:
 
     @property
     def time_str(self) -> str:
+        """Hora UTC original (HH:MM:SS)."""
         return self.timestamp.strftime("%H:%M:%S")
+
+    @property
+    def local_time(self) -> datetime:
+        """Timestamp convertido para o timezone local do UmbrelOS."""
+        return self.timestamp.astimezone(get_local_tz())
+
+    @property
+    def local_time_str(self) -> str:
+        """Hora no timezone local (HH:MM)."""
+        return self.local_time.strftime("%H:%M")
+
+    @property
+    def local_datetime_str(self) -> str:
+        """Data e hora no timezone local (YYYY-MM-DD HH:MM)."""
+        return self.local_time.strftime("%Y-%m-%d %H:%M")
 
 
 @dataclass
@@ -99,7 +117,8 @@ class SessionWideAuth:
     date: str
     count: int
     duration_min: float
-    first_approval: str  # ISO timestamp
+    first_approval: str  # ISO timestamp ou datetime local formatado
+    first_approval_time: str = ""  # HH:MM local
 
 
 @dataclass
