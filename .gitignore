@@ -1,0 +1,32 @@
+# Lastro — .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hermes local state (nunca versionar)
+state.db
+state.db-journal
+state.db-wal
+*.session
+
+# Dados sensíveis
+.env
+*.log
+auth.json
+
+# Output local (gerado pelos coletores)
+obsidian-vault/
