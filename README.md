@@ -21,6 +21,10 @@ state.db ──→ lastro sync ──→ vault Obsidian
 
 ---
 
+## Observações
+
+Caso ainda não possua Hermes no UmbrelOS, visite este guia: https://github.com/EmanuelXBT/hermes-agent-umbrel
+
 ## Instalação
 
 ```bash
