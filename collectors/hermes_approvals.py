@@ -21,6 +21,7 @@ from ..vault import VaultManager
 from ..tz import get_local_tz_name, local_now, utc_to_local
 
 HISTORICO_FILENAME = "Historico_Aprovacoes.md"
+DATE_SUBFOLDER = "aprovacoes"
 
 # ── Parsing ─────────────────────────────────────────────────────────
 
@@ -282,7 +283,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
             lines.append("| Data | Hora | Comando/Ação | Status | Sessão |")
             lines.append("|---|---|---|---|---|")
             for e in sorted(proj_events, key=lambda x: x.timestamp):
-                date_link = VaultManager.wikilink(e.date)
+                date_link = VaultManager.wikilink(f"{DATE_SUBFOLDER}/{e.date}", e.date)
                 s = sessions.get(e.session_id, SessionInfo(session_id=e.session_id))
                 lines.append(
                     f"| {date_link} | {e.local_time_str} "
@@ -317,7 +318,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
         ])
         for sw in sorted(wide_auths, key=lambda x: x.date, reverse=True):
             lines.append(
-                f"| {VaultManager.wikilink(sw.date)} | {sw.first_approval_time} "
+                f"| {VaultManager.wikilink(f'{DATE_SUBFOLDER}/{sw.date}', sw.date)} | {sw.first_approval_time} "
                 f"| {sw.session_title} "
                 f"| {sw.count} | {sw.duration_min} min |"
             )
@@ -401,7 +402,7 @@ def render(all_events: list, sessions: dict, wide_auths: list) -> dict:
     for e in all_events:
         by_date[e.date].append(e)
     for date_str, date_events in sorted(by_date.items()):
-        files[f"{date_str}.md"] = _render_date_note(date_str, date_events, sessions, wide_auths)
+        files[f"{DATE_SUBFOLDER}/{date_str}.md"] = _render_date_note(date_str, date_events, sessions, wide_auths)
     return files
 
 
