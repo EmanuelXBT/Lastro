@@ -32,7 +32,25 @@ git clone https://github.com/EmanuelXBT/lastro.git
 cd lastro
 ```
 
-Zero dependências externas. Só precisa de **Python 3.10+** e acesso ao `state.db` do Hermes.
+Zero dependências externas. Só precisa de **Python 3.9+** e acesso ao `state.db` do Hermes.
+
+### Timezone
+
+O Lastro converte automaticamente timestamps UTC para o horário local do seu UmbrelOS. A detecção segue esta prioridade:
+
+1. Variável de ambiente `$TZ`
+2. Arquivo `/etc/timezone` (Debian/Ubuntu)
+3. Symlink `/etc/localtime` (se diferente de UTC)
+4. Arquivo `.tz` na raiz do projeto (crie com o nome do timezone, ex: `America/Sao_Paulo`)
+5. Fallback: UTC
+
+Para configurar manualmente:
+
+```bash
+echo "America/Sao_Paulo" > .tz
+```
+
+O arquivo `.tz` está no `.gitignore` — cada instalação tem o seu.
 
 ---
 
@@ -72,10 +90,11 @@ Extrai todas as aprovações de comandos do Hermes (terminal + clarify).
 **Entrada:** `state.db` → tabelas `messages` + `sessions`
 
 **Saída no vault:**
-- `Historico_Aprovacoes.md` — índice consolidado com tabelas por projeto
-- `YYYY-MM-DD.md` — notas diárias com detalhes de cada aprovação (risco, comando, sessão)
+- `Historico_Aprovacoes.md` — índice consolidado com tabelas por projeto (data + **hora local**)
+- `YYYY-MM-DD.md` — notas diárias com detalhes de cada aprovação (risco, comando, sessão, horário)
 - Detecção de sessões YOLO (autorização em lote)
 - Backlinks navegáveis entre notas
+- Timestamps convertidos de UTC para o timezone do UmbrelOS
 
 ---
 
@@ -88,10 +107,11 @@ lastro/
 ├── cli.py                   # CLI: sync, status, list
 ├── engine.py                # Orquestrador de coletores
 ├── schemas.py               # Modelos: ApprovalEvent, SessionInfo, CollectorResult
+├── tz.py                    # Detecção automática de timezone (5 níveis)
 ├── vault.py                 # Interface Obsidian: wikilinks, frontmatter, notas
 ├── collectors/
 │   ├── __init__.py          # Registro de coletores
-│   └── hermes_approvals.py  # Coletor de aprovações
+│   └── hermes_approvals.py  # Coletor de aprovações (com hora local)
 └── templates/               # (futuro) Templates Jinja2
 ```
 
@@ -115,6 +135,7 @@ Para adicionar um coletor novo:
 ## Roadmap
 
 - [x] `approvals` — Histórico de aprovações
+- [x] `timezone` — Detecção automática de timezone do UmbrelOS
 - [ ] `sessions` — Diário automático de sessões (resumo + decisões)
 - [ ] `cron` — Log de cron jobs executados
 - [ ] `skills` — Catálogo de skills instaladas
