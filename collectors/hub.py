@@ -7,7 +7,7 @@ do Obsidian.
 
 Diferente dos demais coletores, o hub é **vault-driven**: não lê o
 state.db. Ele varre o vault (aprovacoes/, notas mestras) e monta o
-índice navegável com wikilinks e âncoras de seção.
+índice navegável com wikilinks diretos para cada componente do Hermes.
 
 Deve rodar POR ÚLTIMO no engine, após os coletores de dados, para
 enxergar os arquivos recém-gerados.
@@ -26,13 +26,20 @@ DATE_SUBFOLDER = "aprovacoes"
 HISTORICO_FILENAME = "Historico_Aprovacoes.md"
 RECENT_DATES_LIMIT = 7
 
-# Nota mestra do harness e suas âncoras de seção.
-# Se a nota for renomeada/reestruturada, ajustar aqui.
+# Notas mestras do ecossistema Hermes — referenciadas pelo hub.
+# Se forem renomeadas, ajustar aqui.
 HARNESS_NOTE = "⚙️ Hermes Harness — SOUL · Skills · Runtime"
-HARNESS_SECTIONS = [
-    ("🧬 SOUL — Identidade", "🧬 SOUL — identidade do agente"),
-    ("🧰 SKILLS — Conhecimento Procedural (51)", "🧰 Skills — conhecimento procedural"),
-    ("⚡ HARNESS — Runtime", "⚡ Harness — runtime e capacidades"),
+COMPONENT_LINKS = [
+    ("🧬 SOUL", "🧬 SOUL — identidade do agente"),
+    ("🧰 Skills", "🧰 Skills — conhecimento procedural"),
+    (HARNESS_NOTE, "⚡ Harness — runtime e capacidades"),
+]
+
+# Caminhos para verificação de integridade (sem .md)
+_INTEGRITY_NOTES = [
+    "🧬 SOUL",
+    "🧰 Skills",
+    HARNESS_NOTE,
 ]
 
 
@@ -62,8 +69,9 @@ def _render_hub(vault: VaultManager, collectors: list[str]) -> tuple[str, list[s
     # são o pior cenário num hub de navegação.
     if not vault.exists(HISTORICO_FILENAME):
         warnings.append(f"Nota mestra ausente: {HISTORICO_FILENAME}")
-    if not vault.exists(f"{HARNESS_NOTE}.md"):
-        warnings.append(f"Nota do harness ausente: {HARNESS_NOTE}.md")
+    for note in _INTEGRITY_NOTES:
+        if not vault.exists(f"{note}.md"):
+            warnings.append(f"Nota mestra ausente: {note}.md")
 
     lines = [
         "---",
@@ -102,15 +110,12 @@ def _render_hub(vault: VaultManager, collectors: list[str]) -> tuple[str, list[s
         "",
         "## ⚙️ Hermes Harness",
         "",
-        "> Identidade, conhecimento procedural e runtime do agente —",
-        "> documentados na nota mestra abaixo.",
+        "> Componentes do agente separados em notas próprias —",
+        "> cada um linkável individualmente no grafo.",
         "",
-        f"- {VaultManager.wikilink(HARNESS_NOTE)}",
     ])
-    for anchor, alias in HARNESS_SECTIONS:
-        lines.append(
-            f"  - {VaultManager.wikilink(f'{HARNESS_NOTE}#{anchor}', alias)}"
-        )
+    for note, alias in COMPONENT_LINKS:
+        lines.append(f"- {VaultManager.wikilink(note, alias)}")
     lines.append("")
 
     lines.extend([
