@@ -8,12 +8,22 @@ import importlib
 from typing import Optional
 
 from .schemas import CollectorResult
-from .collectors import run_approvals
+from .collectors import run_approvals, run_hub
 
-# Registro de coletores disponíveis
+# Registro de coletores disponíveis.
+# ORDEM IMPORTA: o hub roda por último para indexar os arquivos
+# gerados pelos coletores de dados no mesmo sync.
 COLLECTORS = {
     "approvals": run_approvals,
 }
+
+
+def _run_hub(state_db: str, vault_path: str) -> CollectorResult:
+    """Wrapper: injeta a lista de coletores ativos no hub."""
+    return run_hub(state_db, vault_path, collectors=list(COLLECTORS.keys()))
+
+
+COLLECTORS["hub"] = _run_hub
 
 DEFAULT_STATE_DB = "/opt/data/state.db"
 DEFAULT_VAULT = "/opt/data/obsidian-vault"

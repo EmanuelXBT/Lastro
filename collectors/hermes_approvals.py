@@ -21,6 +21,7 @@ from ..vault import VaultManager
 from ..tz import get_local_tz_name, local_now, utc_to_local
 
 HISTORICO_FILENAME = "Historico_Aprovacoes.md"
+HUB_FILENAME = "Lastro.md"
 DATE_SUBFOLDER = "aprovacoes"
 
 # ── Parsing ─────────────────────────────────────────────────────────
@@ -254,6 +255,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
 
     lines = [
         "# 📋 Histórico de Aprovações — Hermes Agent", "",
+        VaultManager.backlink(HUB_FILENAME.removesuffix(".md"), "← 🛰️ Hub Lastro"), "",
         "> Registro **automatizado** de comandos que exigiram aprovação do usuário.",
         f"> Última sincronização: {local_now().strftime('%Y-%m-%d %H:%M')} {get_local_tz_name()}",
         f"> Total: {len(all_events)} eventos de aprovação registrados", "",

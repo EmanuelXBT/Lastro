@@ -96,6 +96,19 @@ Extrai todas as aprovações de comandos do Hermes (terminal + clarify).
 - Backlinks navegáveis entre notas
 - Timestamps convertidos de UTC para o timezone do UmbrelOS
 
+### 🛰️ `hub` — Nó central do grafo
+
+Gera e mantém `Lastro.md`, o MOC (Map of Content) que conecta tudo que o pipeline produz.
+
+**Entrada:** o próprio vault (vault-driven — não lê o `state.db`)
+
+**Saída no vault:**
+- `Lastro.md` — hub com links para o histórico de aprovações, últimas notas diárias e âncoras de seção da nota mestra do harness (SOUL · Skills · Runtime)
+- Tabela de status do pipeline (coletores ativos, timezone, último sync)
+- Alertas de links quebrados (notas mestras ausentes)
+
+> O hub roda **por último** no engine, para indexar os arquivos gerados pelos coletores de dados no mesmo sync. A nota é regenerada a cada sync — edições manuais são perdidas.
+
 ---
 
 ## Arquitetura
@@ -111,7 +124,8 @@ lastro/
 ├── vault.py                 # Interface Obsidian: wikilinks, frontmatter, notas
 ├── collectors/
 │   ├── __init__.py          # Registro de coletores
-│   └── hermes_approvals.py  # Coletor de aprovações (com hora local)
+│   ├── hermes_approvals.py  # Coletor de aprovações (com hora local)
+│   └── hub.py               # Hub central Lastro.md (MOC do grafo)
 └── templates/               # (futuro) Templates Jinja2
 ```
 
@@ -136,6 +150,7 @@ Para adicionar um coletor novo:
 
 - [x] `approvals` — Histórico de aprovações
 - [x] `timezone` — Detecção automática de timezone do UmbrelOS
+- [x] `hub` — Nó central Lastro.md (MOC) conectando o grafo do vault
 - [ ] `sessions` — Diário automático de sessões (resumo + decisões)
 - [ ] `cron` — Log de cron jobs executados
 - [ ] `skills` — Catálogo de skills instaladas
