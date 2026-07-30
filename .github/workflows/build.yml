@@ -1,0 +1,47 @@
+name: Build & Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: 🔍 Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+
+      - name: Ruff — lint
+        run: ruff check .
+
+      - name: Mypy — type check
+        run: mypy lastro/ --ignore-missing-imports
+
+  smoke-test:
+    name: 🧪 Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verifica import
+        run: python -c "from lastro import __version__; print(f'Lastro v{__version__}')"
+
+      - name: Verifica CLI status
+        run: python -m lastro status
