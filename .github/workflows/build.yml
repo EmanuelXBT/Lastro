@@ -27,9 +27,7 @@ jobs:
         run: ruff check .
 
       - name: Mypy — type check
-        run: |
-          pip install -e .
-          mypy -p lastro --ignore-missing-imports
+        run: mypy *.py collectors/ --ignore-missing-imports
 
   smoke-test:
     name: 🧪 Smoke Test
@@ -42,11 +40,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Instalar pacote
-        run: pip install -e .
-
       - name: Verifica import
-        run: python -c "from lastro import __version__; print(f'Lastro v{__version__}')"
+        run: PYTHONPATH=. python -c "from lastro import __version__; print(f'Lastro v{__version__}')"
 
       - name: Verifica CLI status
-        run: python -m lastro status
+        run: PYTHONPATH=. python -m lastro status

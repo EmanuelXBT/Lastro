@@ -30,8 +30,9 @@ Homepage = "https://github.com/EmanuelXBT/Lastro"
 Repository = "https://github.com/EmanuelXBT/Lastro.git"
 Issues = "https://github.com/EmanuelXBT/Lastro/issues"
 
-[tool.setuptools.packages.find]
-include = ["lastro*"]
+[tool.setuptools]
+py-modules = ["__init__", "__main__", "cli", "engine", "schemas", "tz", "vault"]
+packages = ["collectors"]
 
 [tool.ruff]
 target-version = "py39"
