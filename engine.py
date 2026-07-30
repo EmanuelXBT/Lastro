@@ -13,7 +13,7 @@ from .schemas import CollectorResult
 # gerados pelos coletores de dados no mesmo sync.
 COLLECTORS = {
     "approvals": run_approvals,
-    "hub": lambda state_db, vault_path: run_hub(state_db, vault_path, collectors=list(COLLECTORS.keys())),
+    "hub": lambda state_db, vault_path: run_hub(state_db, vault_path, collectors=list(COLLECTORS.keys())),  # type: ignore[has-type]
 }
 
 DEFAULT_STATE_DB = "/opt/data/state.db"

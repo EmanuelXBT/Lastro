@@ -13,12 +13,12 @@ Uso:
 import os
 import sys
 
-from ..schemas import CollectorResult
-
-# Adiciona o diretório pai ao path para import relativo
+# Adiciona o diretório pai ao path para suporte a execução direta do script
 _parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
+
+from lastro.schemas import CollectorResult
 
 
 def cmd_sync(args: list[str]) -> None:

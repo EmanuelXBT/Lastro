@@ -125,11 +125,11 @@ def get_local_tz() -> dt_timezone:
     name = detect_timezone_name()
     _LOCAL_TZ_NAME = name
     try:
-        _LOCAL_TZ = zoneinfo.ZoneInfo(name)
+        _LOCAL_TZ = zoneinfo.ZoneInfo(name)  # type: ignore[assignment]
     except Exception:
         _LOCAL_TZ = dt_timezone.utc
         _LOCAL_TZ_NAME = "UTC"
-    return _LOCAL_TZ
+    return _LOCAL_TZ  # type: ignore[return-value]
 
 
 def get_local_tz_name() -> str:
