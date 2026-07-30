@@ -13,6 +13,8 @@ Uso:
 import sys
 import os
 
+from ..schemas import CollectorResult
+
 # Adiciona o diretório pai ao path para import relativo
 _parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _parent not in sys.path:
@@ -54,7 +56,7 @@ def cmd_list(args: list[str]) -> None:
         print(f"   {name:20s} — {doc.strip().split(chr(10))[0][:60]}")
 
 
-def _print_result(result) -> None:
+def _print_result(result: CollectorResult) -> None:
     """Exibe resultado de um coletor."""
     icon = "✅" if result.ok else "⚠️"
     print(f"   {icon} {result.collector_name}: {result.events_processed} eventos → "
