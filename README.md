@@ -126,7 +126,6 @@ lastro/
 │   ├── __init__.py          # Registro de coletores
 │   ├── hermes_approvals.py  # Coletor de aprovações (com hora local)
 │   └── hub.py               # Hub central Lastro.md (MOC do grafo)
-└── templates/               # (futuro) Templates Jinja2
 ```
 
 ### Interface de um coletor
