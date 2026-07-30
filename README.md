@@ -3,7 +3,8 @@
 > **Organização para a era da IA.**
 > Do `state.db` ao Obsidian — transforme dados brutos de agentes em notas markdown linkadas.
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://python.org)
+[![Versão](https://img.shields.io/badge/Versão-0.1.0-purple)](https://github.com/EmanuelXBT/Lastro/releases)
 [![Licença](https://img.shields.io/badge/Licença-MIT-green)](LICENSE)
 
 ---
