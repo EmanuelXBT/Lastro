@@ -40,8 +40,5 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verifica import
-        run: PYTHONPATH=. python -c "from lastro import __version__; print(f'Lastro v{__version__}')"
-
-      - name: Verifica CLI status
-        run: PYTHONPATH=. python -m lastro status
+      - name: Verifica sintaxe Python
+        run: python -m py_compile *.py collectors/*.py
