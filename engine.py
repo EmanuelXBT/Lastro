@@ -15,15 +15,8 @@ from .collectors import run_approvals, run_hub
 # gerados pelos coletores de dados no mesmo sync.
 COLLECTORS = {
     "approvals": run_approvals,
+    "hub": lambda state_db, vault_path: run_hub(state_db, vault_path, collectors=list(COLLECTORS.keys())),
 }
-
-
-def _run_hub(state_db: str, vault_path: str) -> CollectorResult:
-    """Wrapper: injeta a lista de coletores ativos no hub."""
-    return run_hub(state_db, vault_path, collectors=list(COLLECTORS.keys()))
-
-
-COLLECTORS["hub"] = _run_hub
 
 DEFAULT_STATE_DB = "/opt/data/state.db"
 DEFAULT_VAULT = "/opt/data/obsidian-vault"
