@@ -27,7 +27,9 @@ jobs:
         run: ruff check .
 
       - name: Mypy — type check
-        run: mypy lastro/ --ignore-missing-imports
+        run: |
+          pip install -e .
+          mypy -p lastro --ignore-missing-imports
 
   smoke-test:
     name: 🧪 Smoke Test
