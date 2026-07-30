@@ -41,4 +41,5 @@ target-version = "py39"
 ignore = [
     "BLE001",    # blind except is intentional in CLI/data pipeline
     "UP045",     # X | None requires Python 3.10+, project targets 3.9+
+    "N999",      # CI checkout dir name (Lastro) vs package name (lastro)
 ]
