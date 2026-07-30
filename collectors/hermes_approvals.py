@@ -14,11 +14,14 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from ..schemas import (
-    ApprovalEvent, ApprovalStatus, SessionInfo,
-    SessionWideAuth, CollectorResult
+    ApprovalEvent,
+    ApprovalStatus,
+    CollectorResult,
+    SessionInfo,
+    SessionWideAuth,
 )
+from ..tz import get_local_tz_name, local_now
 from ..vault import VaultManager
-from ..tz import get_local_tz_name, local_now, utc_to_local
 
 HISTORICO_FILENAME = "Historico_Aprovacoes.md"
 HUB_FILENAME = "Lastro.md"
@@ -313,8 +316,8 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
     if wide_auths:
         lines.extend([
             "## 🔓 Sessões com Autorização em Lote", "",
-            "> Sessões onde múltiplos comandos foram autorizados em sequência "
-            "(possível YOLO / aprovação para sessão inteira).", "",
+            ("> Sessões onde múltiplos comandos foram autorizados em sequência "
+             "(possível YOLO / aprovação para sessão inteira)."), "",
             "| Data | Hora | Sessão | Comandos | Duração |",
             "|---|---|---|---|---|",
         ])

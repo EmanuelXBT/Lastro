@@ -7,8 +7,11 @@ Todos os coletores produzem listas destes tipos. O vault usa estes
 modelos para gerar markdown consistente.
 """
 
+
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 

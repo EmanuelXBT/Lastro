@@ -6,8 +6,11 @@ gerenciar wikilinks, criar notas de data, e manter a consistência
 do vault.
 """
 
+
+from __future__ import annotations
+
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 

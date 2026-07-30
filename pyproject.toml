@@ -32,3 +32,12 @@ Issues = "https://github.com/EmanuelXBT/Lastro/issues"
 
 [tool.setuptools.packages.find]
 include = ["lastro*"]
+
+[tool.ruff]
+target-version = "py39"
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001",    # blind except is intentional in CLI/data pipeline
+    "UP045",     # X | None requires Python 3.10+, project targets 3.9+
+]

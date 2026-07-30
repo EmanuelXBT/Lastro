@@ -13,12 +13,16 @@ Deve rodar POR ÚLTIMO no engine, após os coletores de dados, para
 enxergar os arquivos recém-gerados.
 """
 
+
+from __future__ import annotations
+
 import os
 import re
+from typing import Optional
 
 from ..schemas import CollectorResult
-from ..vault import VaultManager
 from ..tz import get_local_tz_name, local_now
+from ..vault import VaultManager
 
 HUB_FILENAME = "Lastro.md"
 HUB_TITLE = "🛰️ Lastro"
@@ -140,7 +144,7 @@ def _render_hub(vault: VaultManager, collectors: list[str]) -> tuple[str, list[s
     return "\n".join(lines), warnings
 
 
-def run(state_db: str, vault_path: str, collectors: list[str] = None) -> CollectorResult:
+def run(state_db: str, vault_path: str, collectors: Optional[list[str]] = None) -> CollectorResult:
     """Gera o hub central `Lastro.md` no vault."""
     vault = VaultManager(vault_path)
     errors = []

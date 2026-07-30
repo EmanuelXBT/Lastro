@@ -10,8 +10,8 @@ Uso:
     python3 -m lastro list              # Lista coletores disponíveis
 """
 
-import sys
 import os
+import sys
 
 from ..schemas import CollectorResult
 
@@ -23,7 +23,7 @@ if _parent not in sys.path:
 
 def cmd_sync(args: list[str]) -> None:
     """Executa coletores."""
-    from lastro.engine import run_collector, run_all, DEFAULT_STATE_DB, DEFAULT_VAULT
+    from lastro.engine import run_all, run_collector
 
     if args:
         collector_name = args[0]
@@ -33,7 +33,7 @@ def cmd_sync(args: list[str]) -> None:
     else:
         print("🔄 Lastro → executando todos os coletores...")
         results = run_all()
-        for name, result in results.items():
+        for result in results.values():
             _print_result(result)
 
 

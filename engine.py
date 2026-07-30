@@ -4,11 +4,9 @@ Lastro — engine.py
 Orquestrador: descobre coletores, executa, consolida resultados.
 """
 
-import importlib
-from typing import Optional
 
-from .schemas import CollectorResult
 from .collectors import run_approvals, run_hub
+from .schemas import CollectorResult
 
 # Registro de coletores disponíveis.
 # ORDEM IMPORTA: o hub roda por último para indexar os arquivos
