@@ -120,6 +120,7 @@ lastro/
 ├── __main__.py              # python3 -m lastro
 ├── cli.py                   # CLI: sync, status, list
 ├── engine.py                # Orquestrador de coletores
+├── sanitize.py              # Sanitização de IPs/PII (placeholders)
 ├── schemas.py               # Modelos: ApprovalEvent, SessionInfo, CollectorResult
 ├── tz.py                    # Detecção automática de timezone (5 níveis)
 ├── vault.py                 # Interface Obsidian: wikilinks, frontmatter, notas
