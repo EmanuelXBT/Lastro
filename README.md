@@ -96,6 +96,9 @@ Extrai todas as aprovações de comandos do Hermes (terminal + clarify).
 - Detecção de sessões YOLO (autorização em lote)
 - Backlinks navegáveis entre notas
 - Timestamps convertidos de UTC para o timezone do UmbrelOS
+- **Sanitização de IPs/PII** — endereços IPv4, IPv6 e URLs com IP
+  são substituídos por placeholders (`[IP]`, `[IPv6]`) antes da
+  renderização, preservando portas e paths
 
 ### 🛰️ `hub` — Nó central do grafo
 
