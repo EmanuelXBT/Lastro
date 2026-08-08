@@ -13,6 +13,7 @@ import sqlite3
 from collections import defaultdict
 from datetime import datetime, timezone
 
+from ..sanitize import sanitize
 from ..schemas import (
     ApprovalEvent,
     ApprovalStatus,
@@ -20,7 +21,6 @@ from ..schemas import (
     SessionInfo,
     SessionWideAuth,
 )
-from ..sanitize import sanitize
 from ..tz import get_local_tz_name, local_now
 from ..vault import VaultManager
 
