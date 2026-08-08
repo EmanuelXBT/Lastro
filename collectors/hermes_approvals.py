@@ -23,7 +23,7 @@ from ..schemas import (
 from ..tz import get_local_tz_name, local_now
 from ..vault import VaultManager
 
-HISTORICO_FILENAME = "Historico_Aprovacoes.md"
+HISTORICO_FILENAME = "aprovacoes/Histórico de Aprovações.md"
 HUB_FILENAME = "Lastro.md"
 DATE_SUBFOLDER = "aprovacoes"
 
@@ -256,7 +256,18 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
     for e in all_events:
         by_month[e.month_name].append(e)
 
+    today = local_now().strftime('%Y-%m-%d')
     lines = [
+        "---",
+        "domínio: aprovacoes",
+        "status: definitivo",
+        "tags:",
+        "  - aprovacoes/diario",
+        "  - lastro",
+        "  - historico",
+        f"última_revisão: {today}",
+        "---",
+        "",
         "# 📋 Histórico de Aprovações — Hermes Agent", "",
         VaultManager.backlink(HUB_FILENAME.removesuffix(".md"), "← 🛰️ Hub Lastro"), "",
         "> Registro **automatizado** de comandos que exigiram aprovação do usuário.",
@@ -340,7 +351,16 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
 
 def _render_date_note(date_str: str, events: list, sessions: dict,
                       wide_auths: list) -> str:
-    lines = [f"# 📅 {date_str}", "",
+    lines = ["---",
+             "domínio: aprovacoes",
+             "status: definitivo",
+             "tags:",
+             "  - aprovacoes/diario",
+             "  - lastro",
+             f"última_revisão: {date_str}",
+             "---",
+             "",
+             f"# 📅 {date_str}", "",
              "> Registro de aprovações do Hermes Agent nesta data.", ""]
 
     sw_on_date = [sw for sw in wide_auths if sw.date == date_str]

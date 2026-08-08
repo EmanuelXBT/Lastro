@@ -24,10 +24,10 @@ from ..schemas import CollectorResult
 from ..tz import get_local_tz_name, local_now
 from ..vault import VaultManager
 
-HUB_FILENAME = "Lastro.md"
+HUB_FILENAME = "Sistema/Lastro.md"
 HUB_TITLE = "🛰️ Lastro"
 DATE_SUBFOLDER = "aprovacoes"
-HISTORICO_FILENAME = "Historico_Aprovacoes.md"
+HISTORICO_FILENAME = "aprovacoes/Histórico de Aprovações.md"
 RECENT_DATES_LIMIT = 7
 
 # Notas mestras do ecossistema Hermes — referenciadas pelo hub.
@@ -41,9 +41,9 @@ COMPONENT_LINKS = [
 
 # Caminhos para verificação de integridade (sem .md)
 _INTEGRITY_NOTES = [
-    "🧬 SOUL",
-    "🧰 Skills",
-    HARNESS_NOTE,
+    "Sistema/🧬 SOUL",
+    "Sistema/🧰 Skills",
+    "Sistema/" + HARNESS_NOTE,
 ]
 
 
@@ -79,7 +79,13 @@ def _render_hub(vault: VaultManager, collectors: list[str]) -> tuple[str, list[s
 
     lines = [
         "---",
-        "tags: [moc, hub, lastro]",
+        "domínio: sistema",
+        "status: definitivo",
+        "tags:",
+        "  - moc",
+        "  - hub",
+        "  - lastro",
+        f"última_revisão: {now.strftime('%Y-%m-%d')}",
         "---",
         "",
         f"# {HUB_TITLE}",
