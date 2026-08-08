@@ -20,6 +20,7 @@ from ..schemas import (
     SessionInfo,
     SessionWideAuth,
 )
+from ..sanitize import sanitize
 from ..tz import get_local_tz_name, local_now
 from ..vault import VaultManager
 
@@ -79,7 +80,7 @@ def _parse_terminal_approval(approval_str: str) -> tuple:
     else:
         summary = risk_full[:80]
 
-    return status, summary, risk_full
+    return status, summary, sanitize(risk_full)
 
 
 def _extract_command(content_json: str) -> str:
@@ -88,6 +89,7 @@ def _extract_command(content_json: str) -> str:
         cmd = data.get('command', '')
         if cmd:
             cmd = cmd.replace('\n', ' ').replace('\r', '').strip()
+            cmd = sanitize(cmd)
             return cmd[:120] + ('...' if len(cmd) > 120 else '')
     except (json.JSONDecodeError, TypeError):
         pass
@@ -197,7 +199,7 @@ def _load_clarify_events(db_path: str) -> list:
             event_id=row['id'], session_id=row['session_id'],
             timestamp=ts, status=status,
             risk_summary='Autorização de sessão (clarify)',
-            risk_full=f"Pergunta: {question}\\nResposta: {answer}",
+            risk_full=sanitize(f"Pergunta: {question}\nResposta: {answer}"),
             command='', source='clarify',
         ))
     conn.close()
