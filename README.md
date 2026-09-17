@@ -90,6 +90,23 @@ python3 -m lastro resumos --continuo --limite 25
 python3 -m lastro resumos --refazer
 ```
 
+### Hook de `/new` — finalização em tempo real
+
+O gateway Hermes dispara o hook `on_session_reset` sempre que um `/new` é
+aprovado. O script `/opt/data/bin/hooks/on-session-reset.py` roda
+`python3 -m lastro finalizar --sessao <old_session_id>` em background:
+a sessão encerrada recebe o **resumo final** imediatamente e o vault é
+re-renderizado (diário + arquivo morto) antes de a nova sessão engatar.
+
+```bash
+# Finalizar UMA sessão manualmente (mesmo fluxo do hook)
+python3 -m lastro finalizar --sessao 20260917_012345_abcdef12
+```
+
+Instalação: bloco `hooks:` no `config.yaml` do Hermes (`HERMES_HOME`) +
+entrada em `shell-hooks-allowlist.json`. Diagnóstico:
+`hermes hooks list` · `hermes hooks test on_session_reset`.
+
 ### Configuração
 
 Copie `config.example.yaml` para `config.yaml` e ajuste os paths. Busca:
@@ -136,14 +153,16 @@ Extrai as sessões do Hermes, gera o **resumo final** (IA local) e renderiza o d
 - `sessoes/YYYY-MM-DD.md` — notas diárias com contexto inicial, resumo final, ferramentas e alertas
 - `sessoes/🗄️ Sessões não relevantes.md` — arquivo morto auditável
 
-**Filtro de relevância** — sessões insignificantes saem do diário (vão para o arquivo morto):
+**Filtro de relevância (v2)** — sessões insignificantes saem do diário (vão para o arquivo morto):
 - `automacao_cron` — sessões originadas de cron (sync, lembretes, watchdog)
 - `teste_trivial` — títulos tipo "teste"/"?" com pouquíssimas mensagens e sem ferramentas
+- `poucas_interacoes` — ≤2 mensagens do usuário, ≤10 mensagens totais e ≤3 ferramentas
+- `sem_obsidian` — nenhuma mensagem referencia o vault (obsidian/vault/wikilinks); subagentes ficam de fora
 
 **Resumo final:** gerado por LLM local (Ollama, default `qwen2.5:3b`) com
 fallback heurístico quando offline. Gravado em `tb_sessao.resumo_final`
 (preservado entre syncs; resumos manuais nunca são sobrescritos).
-Config em `config.yaml` → `resumo:`. Fila em lotes: `python3 -m lastro resumos --continuo`.
+Config em `config.yaml` → `resumo:`. Fila em lotes: `python3 -m lastro resumos --continuo`. No `/new` do Hermes, o hook `on_session_reset` chama `finalizar` para a sessão encerrada (ver *Hook de /new*).
 
 ### 🖥️ `server` · ⏰ `cron` · ⚠️ `erros` · 🧩 `skills`
 
@@ -175,7 +194,7 @@ Gera e mantém `Lastro.md`, o MOC (Map of Content) que conecta tudo que o pipeli
 lastro/
 ├── __init__.py              # "Organização para a era da IA"
 ├── __main__.py              # python3 -m lastro
-├── cli.py                   # CLI: sync, status, list, query, stats, resumos
+├── cli.py                   # CLI: sync, status, list, query, stats, resumos, finalizar
 ├── config.py                # config.yaml (subset YAML, zero deps)
 ├── db.py                    # lastro.db (SQLite versionado, migrações)
 ├── resumo.py                # Resumo final das sessões (Ollama + heurística)

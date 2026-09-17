@@ -10,12 +10,14 @@ Uso:
     python3 -m lastro list              # Lista coletores disponíveis
     python3 -m lastro resumos           # Gera resumos finais pendentes (IA local)
     python3 -m lastro resumos --continuo --limite 25   # Drena a fila em lotes
+    python3 -m lastro finalizar --sessao ID   # Finaliza uma sessão (hook de /new)
 
 Flags:
     --config PATH    Caminho para arquivo de configuração YAML
     --continuo       (resumos) Processa a fila até drenar
     --refazer        (resumos) Regenera resumos heurísticos (manuais são preservados)
     --limite N       (resumos) Máximo de resumos por execução (default: 10)
+    --sessao ID      (finalizar) ID da sessão encerrada a finalizar
 """
 
 from __future__ import annotations
@@ -44,7 +46,8 @@ def _parse_args(argv: list[str]) -> tuple[str, list[str], Optional[str]]:
     parser.add_argument("--config", type=str, default=None,
                         help="Caminho para config.yaml")
     parser.add_argument("command", nargs="?", default="sync",
-                        choices=["sync", "status", "list", "query", "stats", "resumos"],
+                        choices=["sync", "status", "list", "query", "stats",
+                                 "resumos", "finalizar"],
                         help="Comando (default: sync)")
     parser.add_argument("collector", nargs="?", default=None,
                         help="Nome do coletor (sync)")
@@ -54,6 +57,8 @@ def _parse_args(argv: list[str]) -> tuple[str, list[str], Optional[str]]:
                         help="(resumos) Regenera resumos heurísticos")
     parser.add_argument("--limite", type=int, default=None,
                         help="(resumos) Máximo de resumos por execução")
+    parser.add_argument("--sessao", type=str, default=None,
+                        help="(finalizar) ID da sessão encerrada")
     # Captura --help manualmente
     if "-h" in argv or "--help" in argv:
         parser.print_help()
@@ -67,6 +72,8 @@ def _parse_args(argv: list[str]) -> tuple[str, list[str], Optional[str]]:
         rest.append("--refazer")
     if ns.limite is not None:
         rest.extend(["--limite", str(ns.limite)])
+    if ns.sessao:
+        rest.extend(["--sessao", ns.sessao])
     rest.extend(unknown)
     return ns.command, rest, ns.config
 
@@ -278,6 +285,52 @@ def cmd_resumos(args: list[str], config: LastroConfig) -> None:
         config.resumo.limite_por_sync = limite_sync
 
 
+def cmd_finalizar(args: list[str], config: LastroConfig) -> None:
+    """Finaliza UMA sessão encerrada: resumo forçado + classificação + render.
+
+    Fluxo do hook `on_session_reset` (comando `/new` do gateway): chamado em
+    background pelo script /opt/data/bin/hooks/on-session-reset.py com o
+    `old_session_id` da sessão que acabou de encerrar.
+    """
+    sessao = ""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--sessao" and i + 1 < len(args):
+            i += 1
+            sessao = args[i]
+        i += 1
+    if not sessao:
+        print("❌ finalizar: --sessao <id> é obrigatório")
+        sys.exit(2)
+
+    from lastro.collectors import sessions as sessions_collector
+    from lastro.resumo import finalizar_sessao
+
+    print(f"🏁 Lastro → finalizar sessão {sessao}")
+    # 1) Ingestão + classificação (sem render)
+    r1 = sessions_collector.run(config.state_db, config.vault_path,
+                                db_path=config.db_path, resumo_cfg=None,
+                                renderizar=False)
+    for erro in r1.errors:
+        print(f"   ⚠️  {erro}")
+
+    # 2) Resumo forçado da sessão que acabou de encerrar
+    stats = finalizar_sessao(config.state_db, config.db_path,
+                             config.resumo, sessao)
+    if stats.get("ok"):
+        origem = stats.get("origem", "?")
+        print(f"   ✍️  resumo ({origem}): {(stats.get('texto') or '')[:100]}…")
+    else:
+        print(f"   ℹ️  resumo não gerado: {stats.get('motivo')}")
+
+    # 3) Render único (diário + arquivo morto) já com o resumo novo
+    r2 = sessions_collector.run(config.state_db, config.vault_path,
+                                db_path=config.db_path, resumo_cfg=None,
+                                renderizar=True)
+    _print_result(r2)
+
+
 def main() -> None:
     argv = sys.argv[1:] if len(sys.argv) > 1 else ["sync"]
     cmd, rest, config_path = _parse_args(argv)
@@ -296,9 +349,11 @@ def main() -> None:
         cmd_stats(rest, config)
     elif cmd == "resumos":
         cmd_resumos(rest, config)
+    elif cmd == "finalizar":
+        cmd_finalizar(rest, config)
     else:
         print(f"❌ Comando desconhecido: {cmd}")
-        print("   Disponíveis: sync, status, list, query, stats, resumos")
+        print("   Disponíveis: sync, status, list, query, stats, resumos, finalizar")
         sys.exit(1)
 
 

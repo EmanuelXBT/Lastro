@@ -237,3 +237,32 @@ def processar_resumos(state_db: str, db_path: str, cfg: ResumoConfig,
             stats["ia" if origem == "auto" else "heuristica"] += 1
             log(f"   ✍️  {sid[:24]} ({origem}): {texto[:80]}…")
     return stats
+
+
+def finalizar_sessao(state_db: str, db_path: str, cfg: ResumoConfig,
+                     session_id: str, log: Callable[..., None] = print) -> dict:
+    """Gera (forçado) o resumo final de UMA sessão recém-encerrada.
+
+    Fluxo do shell hook `on_session_reset` (comando `/new`): diferente de
+    processar_resumos(), não exige `fim` preenchido nem passa pela fila de
+    pendentes — a sessão acabou de encerrar no reset.
+
+    Retorna {"ok": bool, "motivo"?: str, "origem"?: str, "texto"?: str}.
+    Resumos manuais nunca são sobrescritos.
+    """
+    from .db import DatabaseManager
+
+    db = DatabaseManager(db_path)
+    s = db.get_sessao(session_id)
+    if not s:
+        log(f"   ⚠️  finalizar: sessão {session_id[:24]} ausente do lastro.db")
+        return {"ok": False, "motivo": "sessao_ausente"}
+    if s.get("resumo_origem") == "manual":
+        return {"ok": True, "motivo": "manual_preservado"}
+    if (s.get("qtd_mensagens") or 0) <= 1:
+        return {"ok": False, "motivo": "sem_conteudo"}
+    texto, origem = gerar_resumo(state_db, session_id, s.get("titulo") or "", cfg)
+    ok = db.set_resumo(session_id, texto, origem)
+    if ok:
+        log(f"   ✍️  {session_id[:24]} ({origem}): {texto[:80]}…")
+    return {"ok": ok, "origem": origem, "texto": texto}

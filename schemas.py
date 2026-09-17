@@ -158,7 +158,10 @@ class SessionSummary:
     resumo_final: str = ""           # Resumo final da sessão (IA local ou heurística)
     resumo_origem: str = ""          # 'auto' = IA local | 'heuristica' | 'manual'
     relevancia: str = "relevante"    # 'relevante' | 'nao_relevante'
-    motivo_nao_relevante: Optional[str] = None  # 'automacao_cron' | 'teste_trivial'
+    motivo_nao_relevante: Optional[str] = None
+    # 'automacao_cron' | 'teste_trivial' | 'poucas_interacoes' | 'sem_obsidian'
+    user_msg_count: int = 999        # Interações do usuário (999 = não enriquecido → mantém)
+    tem_obsidian: bool = True        # Alguma mensagem referencia o vault Obsidian
 
     @property
     def short_id(self) -> str:

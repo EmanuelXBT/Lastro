@@ -47,6 +47,8 @@ _TITULO_TRIVIAL_RE = re.compile(r"(teste|test|oi|ol[aá]|\?+|\.+)", re.IGNORECAS
 MOTIVO_LABEL: dict[str, str] = {
     "automacao_cron": "automação (cron)",
     "teste_trivial": "teste/trivial",
+    "poucas_interacoes": "poucas interações",
+    "sem_obsidian": "sem dados do Obsidian",
 }
 
 # ── Database loaders ────────────────────────────────────────────────
@@ -159,6 +161,27 @@ def _enrich_sessions(sessions: list[SessionSummary], db_path: str) -> None:
     for row in cursor:
         error_counts[row["session_id"]] = row["cnt"]
 
+    # Interações do usuário por sessão (mensagens com role='user')
+    cursor = conn.execute("""
+        SELECT session_id, COUNT(*) as cnt
+        FROM messages
+        WHERE role = 'user'
+        GROUP BY session_id
+    """)
+    user_counts: dict[str, int] = {}
+    for row in cursor:
+        user_counts[row["session_id"]] = row["cnt"]
+
+    # Envolvimento com o Obsidian (referências ao vault em qualquer mensagem)
+    cursor = conn.execute("""
+        SELECT DISTINCT session_id
+        FROM messages
+        WHERE content LIKE '%obsidian%'
+           OR content LIKE '%[[%'
+           OR content LIKE '%vault%'
+    """)
+    obsidian_ids: set[str] = {row["session_id"] for row in cursor}
+
     conn.close()
 
     # Apply enrichment
@@ -168,6 +191,9 @@ def _enrich_sessions(sessions: list[SessionSummary], db_path: str) -> None:
         s.tools_used = tools_map.get(sid, [])
         s.approval_count = approval_counts.get(sid, 0)
         s.error_count = error_counts.get(sid, 0)
+        s.user_msg_count = user_counts.get(sid, 999)
+        # Guarda defensiva: conjunto vazio = anomalia de leitura → mantém no diário
+        s.tem_obsidian = (sid in obsidian_ids) if obsidian_ids else True
 
 
 # ── Filtro de relevância ────────────────────────────────────────────
@@ -175,8 +201,16 @@ def _enrich_sessions(sessions: list[SessionSummary], db_path: str) -> None:
 def _classificar_relevancia(s: SessionSummary) -> tuple[str, Optional[str]]:
     """Classifica a sessão como relevante ou não (filtro do diário).
 
-    Retorna (relevancia, motivo): ('relevante', None) ou
-    ('nao_relevante', 'automacao_cron' | 'teste_trivial').
+    Retorna (relevancia, motivo): ('relevante', None) ou ('nao_relevante', motivo)
+    com motivo em: 'automacao_cron' | 'teste_trivial' | 'poucas_interacoes' |
+    'sem_obsidian'.
+
+    Critérios (v2, 2026-09-17):
+      - cron → fora; título trivial com poucas mensagens → fora;
+      - poucas interações reais (≤2 mensagens do usuário, ≤10 mensagens totais
+        e ≤3 ferramentas) → fora;
+      - sem nenhuma referência ao vault Obsidian em nenhuma mensagem → fora.
+    Subagentes ficam de fora dos dois critérios novos (permanecem no diário).
     """
     if s.source == "cron":
         return "nao_relevante", "automacao_cron"
@@ -186,6 +220,13 @@ def _classificar_relevancia(s: SessionSummary) -> tuple[str, Optional[str]]:
     if (s.message_count <= 2 and s.tool_call_count == 0) or \
        (trivial and s.message_count <= 4 and s.tool_call_count <= 1):
         return "nao_relevante", "teste_trivial"
+
+    if s.source != "subagent":
+        if s.user_msg_count <= 2 and s.message_count <= 10 and s.tool_call_count <= 3:
+            return "nao_relevante", "poucas_interacoes"
+        if not s.tem_obsidian:
+            return "nao_relevante", "sem_obsidian"
+
     return "relevante", None
 
 
@@ -444,12 +485,16 @@ def _notas_diarias_orfas(vault: VaultManager, datas_ativas: set) -> list[str]:
 
 def run(state_db: str, vault_path: str,
         db_path: str = "",
-        resumo_cfg: Optional[ResumoConfig] = None) -> CollectorResult:
+        resumo_cfg: Optional[ResumoConfig] = None,
+        renderizar: bool = True) -> CollectorResult:
     """Coleta sessões, gera resumos finais (IA local), filtra relevância e renderiza.
 
     Renderiza: índice (só relevantes), notas diárias (só relevantes) e o
     arquivo morto das sessões não relevantes. Notas diárias que ficarem sem
     sessões relevantes são removidas (o registro vai para o arquivo morto).
+
+    Com renderizar=False faz apenas ingestão + classificação + persistência
+    (sem escrever no vault) — usado pelo fluxo `finalizar` do hook /new.
     """
     vault = VaultManager(vault_path)
     errors: list[str] = []
@@ -503,48 +548,49 @@ def run(state_db: str, vault_path: str,
 
     written: dict[str, str] = {}
 
-    # Index file (apenas relevantes)
-    try:
-        index_content = _render_index(relevantes, total=len(sessions),
-                                      arquivadas=len(arquivadas))
-        vault.write(INDEX_FILENAME, index_content)
-        written[INDEX_FILENAME] = f"{len(index_content)} bytes"
-    except Exception as e:
-        errors.append(f"Falha ao renderizar índice: {e}")
-
-    # Date notes (apenas relevantes)
-    by_date: dict[str, list[SessionSummary]] = defaultdict(list)
-    for s in relevantes:
-        by_date[s.date].append(s)
-
-    for date_str, date_sessions in sorted(by_date.items()):
+    if renderizar:
+        # Index file (apenas relevantes)
         try:
-            content = _render_date_note(date_str, date_sessions)
-            filename = f"{DATE_SUBFOLDER}/{date_str}.md"
-            vault.write(filename, content)
-            written[filename] = f"{len(content)} bytes"
+            index_content = _render_index(relevantes, total=len(sessions),
+                                          arquivadas=len(arquivadas))
+            vault.write(INDEX_FILENAME, index_content)
+            written[INDEX_FILENAME] = f"{len(index_content)} bytes"
         except Exception as e:
-            errors.append(f"Falha ao renderizar {date_str}: {e}")
+            errors.append(f"Falha ao renderizar índice: {e}")
 
-    # Limpeza: notas diárias que ficaram apenas com sessões não relevantes
-    try:
-        orfas = _notas_diarias_orfas(vault, set(by_date.keys()))
-        removidas = 0
-        for name in orfas:
-            if vault.remove(f"{DATE_SUBFOLDER}/{name}"):
-                removidas += 1
-        if removidas:
-            written["sessoes/(limpeza)"] = f"{removidas} nota(s) diária(s) removida(s)"
-    except Exception as e:
-        errors.append(f"Falha na limpeza de notas diárias: {e}")
+        # Date notes (apenas relevantes)
+        by_date: dict[str, list[SessionSummary]] = defaultdict(list)
+        for s in relevantes:
+            by_date[s.date].append(s)
 
-    # Arquivo morto (não relevantes)
-    try:
-        arq_content = _render_arquivo(arquivadas, total=len(sessions))
-        vault.write(ARQUIVO_FILENAME, arq_content)
-        written[ARQUIVO_FILENAME] = f"{len(arq_content)} bytes"
-    except Exception as e:
-        errors.append(f"Falha ao renderizar arquivo morto: {e}")
+        for date_str, date_sessions in sorted(by_date.items()):
+            try:
+                content = _render_date_note(date_str, date_sessions)
+                filename = f"{DATE_SUBFOLDER}/{date_str}.md"
+                vault.write(filename, content)
+                written[filename] = f"{len(content)} bytes"
+            except Exception as e:
+                errors.append(f"Falha ao renderizar {date_str}: {e}")
+
+        # Limpeza: notas diárias que ficaram apenas com sessões não relevantes
+        try:
+            orfas = _notas_diarias_orfas(vault, set(by_date.keys()))
+            removidas = 0
+            for name in orfas:
+                if vault.remove(f"{DATE_SUBFOLDER}/{name}"):
+                    removidas += 1
+            if removidas:
+                written["sessoes/(limpeza)"] = f"{removidas} nota(s) diária(s) removida(s)"
+        except Exception as e:
+            errors.append(f"Falha na limpeza de notas diárias: {e}")
+
+        # Arquivo morto (não relevantes)
+        try:
+            arq_content = _render_arquivo(arquivadas, total=len(sessions))
+            vault.write(ARQUIVO_FILENAME, arq_content)
+            written[ARQUIVO_FILENAME] = f"{len(arq_content)} bytes"
+        except Exception as e:
+            errors.append(f"Falha ao renderizar arquivo morto: {e}")
 
     return CollectorResult(
         collector_name="sessions",

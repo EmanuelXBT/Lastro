@@ -22,6 +22,7 @@ import json
 import os
 import sqlite3
 from datetime import datetime
+from typing import Optional
 
 from .schemas import ApprovalEvent, SessionSummary
 
@@ -306,6 +307,16 @@ class DatabaseManager:
                 date = s["inicio"][:10]
                 result[date].append(s)
         return dict(result)
+
+    def get_sessao(self, id_sessao: str) -> Optional[dict]:
+        """Retorna uma sessão de tb_sessao como dicionário (ou None)."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM tb_sessao WHERE id_sessao = ?", (id_sessao,)
+        ).fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     # ── Resumos finais ────────────────────────────────────────────
 

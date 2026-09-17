@@ -7,6 +7,19 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [0.3.0] — 2026-09-17
+
+### Added
+- **Hook de ciclo de vida `/new`** — o evento `on_session_reset` do gateway dispara `python3 -m lastro finalizar --sessao <id>` em background (script `/opt/data/bin/hooks/on-session-reset.py`, com allowlist própria): a sessão encerrada ganha o resumo final na hora e o vault é re-renderizado antes de a nova sessão engatar
+- Comando `python3 -m lastro finalizar --sessao ID` — resumo forçado (não exige `fim` preenchido) + classificação + render único
+- Filtro de relevância **v2**: novos motivos `poucas_interacoes` (≤2 mensagens do usuário, ≤10 totais e ≤3 ferramentas) e `sem_obsidian` (nenhuma referência ao vault em nenhuma mensagem) — subagentes permanecem no diário
+- `DatabaseManager.get_sessao(id)` · `resumo.finalizar_sessao()` · `sessions.run(..., renderizar=False)`
+
+### Changed
+- Auditoria retroativa com os critérios v2: 388 sessões → **142 relevantes · 246 no arquivo morto** (48 `sem_obsidian` + 14 `poucas_interacoes` movidas nesta rodada)
+
+---
+
 ## [0.1.0] — 2026-07-30
 
 ### Added
