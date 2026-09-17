@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lastro"
-version = "0.1.0"
+version = "0.2.0"
 description = "Organização para a era da IA — do state.db ao Obsidian"
 readme = "README.md"
 license = {text = "MIT"}
@@ -31,7 +31,7 @@ Repository = "https://github.com/EmanuelXBT/Lastro.git"
 Issues = "https://github.com/EmanuelXBT/Lastro/issues"
 
 [tool.setuptools]
-py-modules = ["__init__", "__main__", "cli", "engine", "schemas", "tz", "vault"]
+py-modules = ["__init__", "__main__", "cli", "config", "db", "engine", "resumo", "sanitize", "schemas", "tz", "vault"]
 packages = ["collectors"]
 
 [tool.ruff]

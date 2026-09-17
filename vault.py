@@ -55,6 +55,14 @@ class VaultManager:
             f.write(content_bytes)
         return len(content_bytes)
 
+    def remove(self, filename: str) -> bool:
+        """Remove uma nota do vault. Retorna True se removida."""
+        path = self.note_path(filename)
+        if os.path.exists(path):
+            os.remove(path)
+            return True
+        return False
+
     # ── WikiLink helpers ──────────────────────────────────────────
 
     @staticmethod

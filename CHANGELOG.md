@@ -33,16 +33,31 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
-## [Unreleased]
+## [0.2.0] — 2026-09-17
+
+### Added
+- Coletor `sessions` — diário automático de sessões no vault (`📋 Sessões.md` + notas diárias)
+- **Resumo final por sessão** via LLM local (Ollama, `qwen2.5:3b`) com fallback heurístico — gravado em `tb_sessao.resumo_final` (preservado entre syncs; manuais intocáveis)
+- **Filtro de relevância** — sessões insignificantes (cron, testes/triviais) saem do diário e vão para o arquivo morto auditável `sessoes/🗄️ Sessões não relevantes.md`
+- Comando `python3 -m lastro resumos [--continuo] [--refazer] [--limite N]`
+- Coletor `server` — métricas do host (disco, RAM, CPU, docker)
+- Coletor `cron` — cron jobs do Hermes (agenda e última execução)
+- Coletor `erros` — padrões de erro detectados nas sessões
+- Coletor `skills` — catálogo de skills com estatísticas de uso
+- `config.yaml` — configuração centralizada (paths, timezone, coletores, resumo)
+- `lastro.db` — banco SQLite persistente com schema versionado (`PRAGMA user_version`) e migrações automáticas
+- CLI: comandos `query` (SQL read-only) e `stats`
+
+### Changed
+- `engine.py` — coletores recebem `db_path`; `sessions` gera/renderiza os resumos finais
+- Schema do `lastro.db` **v2** — novas colunas: `resumo_final`, `resumo_origem`, `relevancia`, `motivo_nao_relevante`
+- `vault.py` — suporte a remoção de notas (`remove`)
 
 ### Planned
-- Coletor `sessions` — diário automático de sessões
-- Coletor `cron` — log de cron jobs executados
-- Coletor `skills` — catálogo de skills instaladas
-- Coletor `sistema` — métricas do Umbrel (disco, RAM, uptime)
+- Decisões estruturadas por sessão (roadmap)
 - Templates Jinja2 customizáveis
-- `config.yaml` para paths e preferências
 
 ---
 
 [0.1.0]: https://github.com/EmanuelXBT/Lastro/releases/tag/v0.1.0
+[0.2.0]: https://github.com/EmanuelXBT/Lastro/releases/tag/v0.2.0

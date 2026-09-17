@@ -27,12 +27,16 @@ from ..vault import VaultManager
 HUB_FILENAME = "Sistema/Lastro.md"
 HUB_TITLE = "🛰️ Lastro"
 DATE_SUBFOLDER = "aprovacoes"
+# Mesmo prefixo usado por hermes_approvals.py (evita colisao com sessoes/<data>.md).
+DATE_NOTE_PREFIX = "aprovacao-"
 HISTORICO_FILENAME = "aprovacoes/Histórico de Aprovações.md"
 RECENT_DATES_LIMIT = 7
 
 # Notas mestras do ecossistema Hermes — referenciadas pelo hub.
 # Se forem renomeadas, ajustar aqui.
 HARNESS_NOTE = "⚙️ Hermes Harness — SOUL · Skills · Runtime"
+# Nome real do arquivo no vault (o link acima resolve por alias).
+HARNESS_FILENAME = "⚙_Hermes_Harness_—_SOUL_·_Skills_·_Runtime"
 COMPONENT_LINKS = [
     ("🧬 SOUL", "🧬 SOUL — identidade do agente"),
     ("🧰 Skills", "🧰 Skills — conhecimento procedural"),
@@ -40,10 +44,12 @@ COMPONENT_LINKS = [
 ]
 
 # Caminhos para verificação de integridade (sem .md)
+# Nomes REAIS dos arquivos (com underscore). Usar o titulo legivel aqui faz a
+# checagem acusar "nota mestra ausente" para notas que existem.
 _INTEGRITY_NOTES = [
-    "Sistema/🧬 SOUL",
-    "Sistema/🧰 Skills",
-    "Sistema/" + HARNESS_NOTE,
+    "Sistema/🧬_SOUL",
+    "Sistema/🧰_Skills",
+    "Sistema/" + HARNESS_FILENAME,
 ]
 
 
@@ -54,7 +60,7 @@ def _list_date_notes(vault: VaultManager) -> list[str]:
         return []
     dates = []
     for fname in os.listdir(folder):
-        m = re.match(r"^(\d{4}-\d{2}-\d{2})\.md$", fname)
+        m = re.match(r"^" + DATE_NOTE_PREFIX + r"(\d{4}-\d{2}-\d{2})\.md$", fname)
         if m:
             dates.append(m.group(1))
     return sorted(dates, reverse=True)
@@ -84,7 +90,7 @@ def _render_hub(vault: VaultManager, collectors: list[str]) -> tuple[str, list[s
         "tags:",
         "  - moc",
         "  - hub",
-        "  - lastro",
+        "  - Lastro",
         f"última_revisão: {now.strftime('%Y-%m-%d')}",
         "---",
         "",

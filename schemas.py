@@ -135,3 +135,64 @@ class CollectorResult:
     @property
     def ok(self) -> bool:
         return len(self.errors) == 0
+
+
+@dataclass
+class SessionSummary:
+    """Resumo de uma sessão do Hermes para o diário de sessões."""
+    session_id: str
+    title: str
+    source: str
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    message_count: int = 0
+    tool_call_count: int = 0
+    model: str = ""
+    first_user_msg: str = ""         # Primeira mensagem do usuário (truncada)
+    tools_used: list[str] = field(default_factory=list)
+    approval_count: int = 0          # Aprovações de terminal nesta sessão
+    error_count: int = 0             # Comandos com erro nesta sessão
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
+    resumo_final: str = ""           # Resumo final da sessão (IA local ou heurística)
+    resumo_origem: str = ""          # 'auto' = IA local | 'heuristica' | 'manual'
+    relevancia: str = "relevante"    # 'relevante' | 'nao_relevante'
+    motivo_nao_relevante: Optional[str] = None  # 'automacao_cron' | 'teste_trivial'
+
+    @property
+    def short_id(self) -> str:
+        if len(self.session_id) > 24:
+            return self.session_id[:21] + "..."
+        return self.session_id
+
+    @property
+    def date(self) -> str:
+        if self.started_at:
+            return self.started_at.strftime("%Y-%m-%d")
+        return "????-??-??"
+
+    @property
+    def month_name(self) -> str:
+        if not self.started_at:
+            return "Desconhecido"
+        months_pt = {
+            1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+            5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+            9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro",
+        }
+        m = months_pt[self.started_at.month]
+        return f"{m} {self.started_at.year}"
+
+    @property
+    def duration_min(self) -> float:
+        if self.started_at and self.ended_at:
+            return (self.ended_at - self.started_at).total_seconds() / 60
+        return 0.0
+
+    @property
+    def local_time_str(self) -> str:
+        if self.started_at:
+            lt = self.started_at.astimezone(get_local_tz())
+            return lt.strftime("%H:%M")
+        return "??:??"

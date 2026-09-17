@@ -28,6 +28,10 @@ state.db-wal
 *.log
 auth.json
 .tz
+config.yaml
+lastro.db
 
 # Output local (gerado pelos coletores)
 obsidian-vault/
+lastro.db-shm
+lastro.db-wal

@@ -27,6 +27,9 @@ from ..vault import VaultManager
 HISTORICO_FILENAME = "aprovacoes/Histórico de Aprovações.md"
 HUB_FILENAME = "Lastro.md"
 DATE_SUBFOLDER = "aprovacoes"
+# Prefixo das notas diarias: evita colisao de nome com "sessoes/<data>.md"
+# (mesmo basename em duas pastas quebra a busca do Obsidian).
+DATE_NOTE_PREFIX = "aprovacao-"
 
 # ── Parsing ─────────────────────────────────────────────────────────
 
@@ -265,7 +268,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
         "status: definitivo",
         "tags:",
         "  - aprovacoes/diario",
-        "  - lastro",
+        "  - Lastro",
         "  - historico",
         f"última_revisão: {today}",
         "---",
@@ -301,7 +304,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
             lines.append("| Data | Hora | Comando/Ação | Status | Sessão |")
             lines.append("|---|---|---|---|---|")
             for e in sorted(proj_events, key=lambda x: x.timestamp):
-                date_link = VaultManager.wikilink(f"{DATE_SUBFOLDER}/{e.date}", e.date)
+                date_link = VaultManager.wikilink(f"{DATE_SUBFOLDER}/{DATE_NOTE_PREFIX}{e.date}")
                 s = sessions.get(e.session_id, SessionInfo(session_id=e.session_id))
                 lines.append(
                     f"| {date_link} | {e.local_time_str} "
@@ -336,7 +339,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
         ])
         for sw in sorted(wide_auths, key=lambda x: x.date, reverse=True):
             lines.append(
-                f"| {VaultManager.wikilink(f'{DATE_SUBFOLDER}/{sw.date}', sw.date)} | {sw.first_approval_time} "
+                f"| {VaultManager.wikilink(f'{DATE_SUBFOLDER}/{DATE_NOTE_PREFIX}{sw.date}')} | {sw.first_approval_time} "
                 f"| {sw.session_title} "
                 f"| {sw.count} | {sw.duration_min} min |"
             )
@@ -358,7 +361,7 @@ def _render_date_note(date_str: str, events: list, sessions: dict,
              "status: definitivo",
              "tags:",
              "  - aprovacoes/diario",
-             "  - lastro",
+             "  - Lastro",
              f"última_revisão: {date_str}",
              "---",
              "",
@@ -429,13 +432,14 @@ def render(all_events: list, sessions: dict, wide_auths: list) -> dict:
     for e in all_events:
         by_date[e.date].append(e)
     for date_str, date_events in sorted(by_date.items()):
-        files[f"{DATE_SUBFOLDER}/{date_str}.md"] = _render_date_note(date_str, date_events, sessions, wide_auths)
+        files[f"{DATE_SUBFOLDER}/{DATE_NOTE_PREFIX}{date_str}.md"] = _render_date_note(date_str, date_events, sessions, wide_auths)
     return files
 
 
 # ── Entry point ─────────────────────────────────────────────────────
 
-def run(state_db: str, vault_path: str) -> CollectorResult:
+def run(state_db: str, vault_path: str,
+        db_path: str = "") -> CollectorResult:
     vault = VaultManager(vault_path)
     errors = []
     try:
@@ -445,6 +449,16 @@ def run(state_db: str, vault_path: str) -> CollectorResult:
             collector_name="hermes_approvals", files_written={},
             events_processed=0, errors=[f"Falha ao coletar eventos: {e}"],
         )
+
+    # Persistência no lastro.db
+    if db_path:
+        try:
+            from ..db import DatabaseManager
+            db = DatabaseManager(db_path)
+            db.upsert_aprovacoes(all_events, sessions)
+        except Exception as e:
+            errors.append(f"Falha ao gravar aprovações no lastro.db: {e}")
+
     try:
         files = render(all_events, sessions, wide_auths)
     except Exception as e:

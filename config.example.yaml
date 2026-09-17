@@ -1,0 +1,69 @@
+# Lastro — config.example.yaml
+# =============================
+# Exemplo de configuração. Copie para config.yaml e ajuste os paths.
+#
+# O Lastro busca config.yaml nesta ordem (primeiro que existir):
+#   1. --config passado na CLI
+#   2. ./config.yaml (raiz do projeto)
+#   3. ~/.config/lastro/config.yaml
+#   4. /opt/data/lastro/config.yaml (Umbrel)
+#
+# Se nenhum arquivo for encontrado, usa os defaults abaixo.
+
+# ── Paths ────────────────────────────────────────────────────────────
+
+# Caminho para o state.db do Hermes Agent.
+# Umbrel:  /opt/data/state.db
+# Desktop: ~/.hermes/state.db
+state_db: /opt/data/state.db
+
+# Caminho para o vault Obsidian.
+# Umbrel:  /opt/data/obsidian-vault
+# Desktop: ~/Documents/Obsidian
+vault_path: /opt/data/obsidian-vault
+
+# Caminho para o banco interno do Lastro (lastro.db).
+# Default: ./lastro.db (ao lado do config.yaml)
+# O banco é criado automaticamente na primeira execução.
+db_path: /opt/data/lastro/lastro.db
+
+# ── Timezone ─────────────────────────────────────────────────────────
+
+# Deixe vazio para auto-detectar (5 níveis de fallback).
+# O auto-detect funciona em Linux (lê /etc/timezone, /etc/localtime, $TZ)
+# Para forçar um timezone específico, use o formato IANA:
+#   "America/Sao_Paulo"
+#   "Europe/Lisbon"
+#   "America/New_York"
+timezone: ""
+
+# ── Coletores ────────────────────────────────────────────────────────
+
+# Habilite/desabilite coletores individualmente.
+# O hub SEMPRE roda por último (ordem fixa: approvals → sessions → hub).
+collectors:
+  approvals: true
+  sessions: false
+  server: false
+  cron: false
+  erros: false
+  skills: false
+  hub: true
+
+# ── Resumo final das sessões (IA local) ──────────────────────────────
+#
+# O coletor sessions gera um "resumo final" de cada sessão relevante
+# usando um LLM local (Ollama) e grava em lastro.db (tb_sessao.resumo_final).
+# Se o Ollama estiver offline, cai automaticamente para uma heurística
+# determinística — o resumo nunca fica vazio.
+#
+# motor: ollama | heuristico
+# ollama_url: aceita fallback separado por vírgula (primeiro que responder)
+# limite_por_sync: quantos resumos pendentes gerar por execução do sync
+resumo:
+  ativo: true
+  motor: ollama
+  ollama_url: "http://localhost:11434"
+  modelo: "qwen2.5:3b"
+  timeout: 300
+  limite_por_sync: 3
