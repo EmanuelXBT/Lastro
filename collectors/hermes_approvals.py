@@ -133,9 +133,10 @@ def _load_terminal_events(db_path: str) -> list:
         FROM messages m
         WHERE m.tool_name = 'terminal'
           AND m.content LIKE '%"approval"%'
-        ORDER BY m.timestamp ASC
+        ORDER BY m.timestamp ASC, m.compacted ASC, m.id ASC
     """)
     events = []
+    seen: set[tuple] = set()
     for row in cursor.fetchall():
         try:
             data = json.loads(row['content'])
@@ -145,6 +146,12 @@ def _load_terminal_events(db_path: str) -> list:
             approval_str = match.group(1) if match else ''
         if not approval_str:
             continue
+        # O state.db guarda cópias espelhadas do mesmo evento (compacted 0/1,
+        # mesmo timestamp e conteúdo) — deduplicar para não dobrar o histórico.
+        dedup_key = (row['session_id'], row['timestamp'], approval_str)
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
         status, summary, risk_full = _parse_terminal_approval(approval_str)
         command = _extract_command(row['content'])
         try:
@@ -169,13 +176,19 @@ def _load_clarify_events(db_path: str) -> list:
         FROM messages m
         WHERE (m.tool_name = 'clarify' OR m.tool_calls LIKE '%clarify%')
           AND m.role = 'tool'
-        ORDER BY m.timestamp DESC
+        ORDER BY m.timestamp DESC, m.compacted ASC, m.id ASC
     """)
     auth_keywords = ['autoriz', 'approv', 'permiss', 'destrutiv',
                      'segurança', 'terminal', 'comando', 'yolo',
                      'execut', 'bloquead']
     events = []
+    seen: set[tuple] = set()
     for row in cursor.fetchall():
+        # Dedupe das cópias espelhadas (compacted 0/1) do state.db.
+        dedup_key = (row['session_id'], row['timestamp'], row['content'])
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
         try:
             data = json.loads(row['content'])
         except json.JSONDecodeError:
@@ -258,8 +271,10 @@ def collect(state_db: str) -> tuple:
 
 def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str:
     by_month = defaultdict(list)
+    month_order = {}
     for e in all_events:
         by_month[e.month_name].append(e)
+        month_order[e.month_name] = (e.timestamp.year, e.timestamp.month)
 
     today = local_now().strftime('%Y-%m-%d')
     lines = [
@@ -285,7 +300,8 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
     for e in all_events:
         by_session[e.session_id].append(e)
 
-    for month_name in sorted(by_month.keys(), reverse=True):
+    # Ordem cronológica (mais recente primeiro) — nunca alfabética pelo nome do mês.
+    for month_name in sorted(by_month.keys(), key=lambda m: month_order[m], reverse=True):
         month_events = by_month[month_name]
         lines.append(f"## {month_name}")
         lines.append("")
@@ -298,7 +314,13 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
                 title.split(':')[0] if ':' in title else title)
             month_by_project[proj].append(e)
 
-        for proj, proj_events in sorted(month_by_project.items()):
+        # Grupos de projeto ordenados pela data do evento mais recente (desc):
+        # mantém a leitura cronológica dentro do mês.
+        for proj, proj_events in sorted(
+            month_by_project.items(),
+            key=lambda item: max(ev.timestamp for ev in item[1]),
+            reverse=True,
+        ):
             lines.append(f"### 🔧 {proj}")
             lines.append("")
             lines.append("| Data | Hora | Comando/Ação | Status | Sessão |")
@@ -320,7 +342,7 @@ def _render_historico(all_events: list, sessions: dict, wide_auths: list) -> str
         "| Mês | ✅ Aprovados | ❌ Recusados | ⏰ Timeout |",
         "|---|---|---|---|",
     ])
-    for month_name in sorted(by_month.keys()):
+    for month_name in sorted(by_month.keys(), key=lambda m: month_order[m], reverse=True):
         month_events = by_month[month_name]
         approved = sum(1 for e in month_events if e.status == ApprovalStatus.APPROVED)
         rejected = sum(1 for e in month_events
