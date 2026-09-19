@@ -118,7 +118,11 @@ def _render_hub(vault: VaultManager, collectors: list[str]) -> tuple[str, list[s
     if recent:
         lines.extend(["", "### Últimos registros", ""])
         for d in recent:
-            lines.append(f"- {VaultManager.wikilink(f'{DATE_SUBFOLDER}/{d}', d)}")
+            # O wikilink precisa do prefixo das notas de data (aprovacao-<data>);
+            # sem ele o Obsidian resolveria para uma página vazia inexistente.
+            lines.append(
+                f"- {VaultManager.wikilink(f'{DATE_SUBFOLDER}/{DATE_NOTE_PREFIX}{d}', d)}"
+            )
     lines.append("")
 
     lines.extend([
