@@ -9,7 +9,10 @@ Extrai metadados das sessões do state.db e gera:
   - sessoes/🗄️ Sessões não relevantes.md — arquivo morto auditável
 
 Cada sessão inclui: título, fonte, duração, ferramentas usadas, aprovações,
-erros, primeira mensagem do usuário (contexto) e o resumo final (IA local).
+erros, primeira mensagem do usuário (contexto), o resumo final (IA local) e o
+motivo do fim (state.db `sessions.end_reason`). Sessões que morreram por
+estouro de contexto (`end_reason='compression'` — auto-reset do gateway — ou
+`compression_failure_error` preenchido) ganham 🧠 no diário.
 
 Filtro de relevância (decidido pelo usuário em 2026-09):
   - automacao_cron: sessões originadas de cron (sync, lembretes, watchdog)
@@ -51,6 +54,28 @@ MOTIVO_LABEL: dict[str, str] = {
     "sem_obsidian": "sem dados do Obsidian",
 }
 
+# Rótulos legíveis do motivo do fim (state.db `sessions.end_reason`)
+MOTIVO_FIM_LABEL: dict[str, str] = {
+    "session_reset": "reset do usuário (/new)",
+    "compression": "compressão esgotada (auto-reset por contexto)",
+    "session_switch": "troca de sessão",
+    "new_session": "nova sessão",
+    "daily": "corte diário",
+    "idle": "inatividade",
+    "suspended": "suspensa",
+    "resume_pending_expired": "retomada expirada",
+    "cron_complete": "cron concluído",
+    "cron_incomplete_no_output": "cron incompleto (sem saída)",
+    "agent_close": "encerramento do agente",
+    "ws_orphan_reap": "reaper de sessão órfã",
+    "ws_disconnect": "desconexão",
+    "startup_orphan_reap": "reaper pós-restart",
+    "superseded_by_resume": "substituída por retomada",
+    "tui_shutdown": "encerramento da TUI",
+    "idle_timeout": "timeout de inatividade",
+    "lru_evict": "descarregada da memória",
+}
+
 # ── Database loaders ────────────────────────────────────────────────
 
 def _load_sessions(db_path: str) -> list[SessionSummary]:
@@ -62,7 +87,9 @@ def _load_sessions(db_path: str) -> list[SessionSummary]:
     cursor.execute("""
         SELECT id, title, source, started_at, ended_at,
                message_count, tool_call_count, model,
-               input_tokens, output_tokens, actual_cost_usd
+               input_tokens, output_tokens, actual_cost_usd,
+               end_reason, compression_failure_error,
+               compression_ineffective_count, compression_fallback_streak
         FROM sessions
         ORDER BY started_at DESC
     """)
@@ -94,6 +121,10 @@ def _load_sessions(db_path: str) -> list[SessionSummary]:
             tokens_in=row["input_tokens"] or 0,
             tokens_out=row["output_tokens"] or 0,
             cost_usd=row["actual_cost_usd"] or 0.0,
+            motivo_fim=row["end_reason"] or "",
+            falha_compressao=(row["compression_failure_error"] or "")[:300],
+            compressao_ineficaz=row["compression_ineffective_count"] or 0,
+            compressao_streak=row["compression_fallback_streak"] or 0,
         ))
     conn.close()
     return sessions
@@ -198,6 +229,18 @@ def _enrich_sessions(sessions: list[SessionSummary], db_path: str) -> None:
 
 # ── Filtro de relevância ────────────────────────────────────────────
 
+# Exceção de estouro de contexto: o Hermes apagou/estourou a sessão e esse
+# registro não pode desaparecer no arquivo morto nem sem nenhuma referência ao
+# vault. Vale só para sessão **importante** (trabalho real) — curta, não.
+CONTEXTO_MIN_MENSAGENS = 30
+CONTEXTO_MIN_TOKENS = 100_000
+
+
+def _sessao_importante(s: SessionSummary) -> bool:
+    """Sessão grande o bastante para não se perder no arquivo morto."""
+    return s.message_count >= CONTEXTO_MIN_MENSAGENS or s.tokens_in >= CONTEXTO_MIN_TOKENS
+
+
 def _classificar_relevancia(s: SessionSummary) -> tuple[str, Optional[str]]:
     """Classifica a sessão como relevante ou não (filtro do diário).
 
@@ -209,7 +252,10 @@ def _classificar_relevancia(s: SessionSummary) -> tuple[str, Optional[str]]:
       - cron → fora; título trivial com poucas mensagens → fora;
       - poucas interações reais (≤2 mensagens do usuário, ≤10 mensagens totais
         e ≤3 ferramentas) → fora;
-      - sem nenhuma referência ao vault Obsidian em nenhuma mensagem → fora.
+      - sem nenhuma referência ao vault Obsidian em nenhuma mensagem → fora;
+      - **exceção (2026-09-20)**: sessão que terminou por estouro de contexto
+        (`s.contexto_estourado`) e é importante (`_sessao_importante`) → dentro,
+        marcada com `relevante_por_contexto=True`.
     Subagentes ficam de fora dos dois critérios novos (permanecem no diário).
     """
     if s.source == "cron":
@@ -220,6 +266,11 @@ def _classificar_relevancia(s: SessionSummary) -> tuple[str, Optional[str]]:
     if (s.message_count <= 2 and s.tool_call_count == 0) or \
        (trivial and s.message_count <= 4 and s.tool_call_count <= 1):
         return "nao_relevante", "teste_trivial"
+
+    # Exceção: estouro de contexto em sessão longa — registro que não pode sumir.
+    if s.contexto_estourado and _sessao_importante(s):
+        s.relevante_por_contexto = True
+        return "relevante", None
 
     if s.source != "subagent":
         if s.user_msg_count <= 2 and s.message_count <= 10 and s.tool_call_count <= 3:
@@ -279,6 +330,7 @@ def _render_index(sessions: list[SessionSummary], total: int,
         f"| Mensagens | {total_msgs:,} |".replace(",", "."),
         f"| Chamadas de ferramenta | {total_tools:,} |".replace(",", "."),
         f"| Sessões com erro | {sum(1 for s in sessions if s.error_count > 0)} |",
+        f"| Sessões com estouro de contexto | {sum(1 for s in sessions if s.contexto_estourado)} |",
         f"| Custo estimado | ${total_cost:.4f} |",
         "",
         "---",
@@ -290,7 +342,7 @@ def _render_index(sessions: list[SessionSummary], total: int,
         month_sessions = by_month[month_name]
         lines.append(f"## {month_name}")
         lines.append("")
-        lines.append("| Data | Hora | Sessão | Msgs | Ferramentas | ⚠️ |")
+        lines.append("| Data | Hora | Sessão | Msgs | Ferramentas | Sinais |")
         lines.append("|---|---|---|---|---|---|")
         for s in sorted(month_sessions,
                         key=lambda x: x.started_at or datetime.min.replace(tzinfo=timezone.utc),
@@ -300,12 +352,13 @@ def _render_index(sessions: list[SessionSummary], total: int,
             if len(s.tools_used) > 4:
                 tools_str += f" +{len(s.tools_used) - 4}"
             error_icon = f" {s.error_count}⚠️" if s.error_count > 0 else ""
+            ctx_icon = "🧠" if s.contexto_estourado else ""
             lines.append(
                 f"| {date_link} | {s.local_time_str} "
                 f"| {s.title[:60]} "
                 f"| {s.message_count} "
                 f"| {tools_str} "
-                f"| {error_icon} |"
+                f"| {ctx_icon}{error_icon} |"
             )
         lines.append("")
 
@@ -356,6 +409,7 @@ def _render_date_note(date_str: str, sessions: list[SessionSummary]) -> str:
             f"| Mensagens | {s.message_count} |",
             f"| Chamadas de ferramenta | {s.tool_call_count} |",
             f"| Tokens | {s.tokens_in:,} in / {s.tokens_out:,} out |".replace(",", "."),
+            f"| Motivo do fim | {MOTIVO_FIM_LABEL.get(s.motivo_fim, s.motivo_fim or '?')} |",
         ])
         if s.cost_usd > 0:
             lines.append(f"| Custo | ${s.cost_usd:.4f} |")
@@ -394,6 +448,14 @@ def _render_date_note(date_str: str, sessions: list[SessionSummary]) -> str:
 
         # Alerts
         alerts = []
+        if s.contexto_estourado:
+            if s.tokens_contexto:
+                detalhe = f" — compressão falhou com {s.tokens_contexto:,} tokens".replace(",", ".")
+            else:
+                detalhe = " — compressão falhou/esgotou"
+            if s.relevante_por_contexto:
+                detalhe += " · mantida no diário pela exceção de contexto"
+            alerts.append(f"🧠 **Fim por estouro de contexto**{detalhe}")
         if s.error_count > 0:
             alerts.append(f"⚠️ **{s.error_count} erro(s)** detectado(s)")
         if s.approval_count > 0:
@@ -401,6 +463,11 @@ def _render_date_note(date_str: str, sessions: list[SessionSummary]) -> str:
         if alerts:
             lines.append(" | ".join(alerts))
             lines.append("")
+        if s.contexto_estourado and s.falha_compressao:
+            lines.extend([
+                f"> ⚙️ Registro do Hermes (`compression_failure_error`): `{s.falha_compressao}`",
+                "",
+            ])
 
         lines.append("---")
         lines.append("")

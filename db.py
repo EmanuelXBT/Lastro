@@ -26,7 +26,7 @@ from typing import Optional
 
 from .schemas import ApprovalEvent, SessionSummary
 
-DB_VERSION = 2
+DB_VERSION = 3
 
 DDL = """
 -- ============================================
@@ -69,6 +69,8 @@ CREATE TABLE IF NOT EXISTS tb_sessao (
     resumo_origem    TEXT,           -- 'auto' | 'heuristica' | 'manual' (manual preservado)
     relevancia       TEXT DEFAULT 'relevante',  -- 'relevante' | 'nao_relevante'
     motivo_nao_relevante TEXT,       -- 'automacao_cron' | 'teste_trivial'
+    motivo_fim       TEXT,           -- state.db sessions.end_reason (ex.: 'compression' = auto-reset por contexto)
+    falha_compressao TEXT,           -- state.db sessions.compression_failure_error (falha de compactação)
     ultimo_sync      TEXT NOT NULL DEFAULT (datetime('now')),
     CONSTRAINT pk_sessao PRIMARY KEY (id_sessao)
 );
@@ -201,6 +203,10 @@ MIGRATIONS: dict[int, list[str]] = {
         "ALTER TABLE tb_sessao ADD COLUMN relevancia TEXT DEFAULT 'relevante'",
         "ALTER TABLE tb_sessao ADD COLUMN motivo_nao_relevante TEXT",
     ],
+    3: [
+        "ALTER TABLE tb_sessao ADD COLUMN motivo_fim TEXT",
+        "ALTER TABLE tb_sessao ADD COLUMN falha_compressao TEXT",
+    ],
 }
 
 
@@ -252,8 +258,9 @@ class DatabaseManager:
                     tokens_in, tokens_out, custo_usd,
                     qtd_erros, qtd_aprovacoes,
                     ferramentas, primeira_msg,
-                    relevancia, motivo_nao_relevante, ultimo_sync
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    relevancia, motivo_nao_relevante,
+                    motivo_fim, falha_compressao, ultimo_sync
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 ON CONFLICT(id_sessao) DO UPDATE SET
                     titulo = excluded.titulo,
                     fonte = excluded.fonte,
@@ -271,6 +278,8 @@ class DatabaseManager:
                     primeira_msg = excluded.primeira_msg,
                     relevancia = excluded.relevancia,
                     motivo_nao_relevante = excluded.motivo_nao_relevante,
+                    motivo_fim = excluded.motivo_fim,
+                    falha_compressao = excluded.falha_compressao,
                     ultimo_sync = datetime('now')
             """, (
                 s.session_id, s.title, s.source,
@@ -282,6 +291,7 @@ class DatabaseManager:
                 json.dumps(s.tools_used, ensure_ascii=False),
                 s.first_user_msg,
                 s.relevancia, s.motivo_nao_relevante,
+                s.motivo_fim, s.falha_compressao,
             ))
             count += 1
         conn.commit()

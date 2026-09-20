@@ -10,12 +10,26 @@ modelos para gerar markdown consistente.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Optional
 
 from .tz import get_local_tz
+
+# Sinais de fim/falha por contexto no state.db:
+#   `sessions.end_reason == 'compression'` → o gateway deu auto-reset porque a
+#     compressão esgotou (sessão apagada);
+#   `sessions.compression_failure_error` → registro da falha de compactação do
+#     turno (ex.: "backoff:stall_interrupted:strategy=lean: ... tokens=201240").
+_MARCADORES_CONTEXTO = (
+    "stall_interrupted",
+    "context_length_exceeded",
+    "compression",
+    "compact",
+    "context length",
+)
 
 
 class ApprovalStatus(str, Enum):
@@ -162,6 +176,36 @@ class SessionSummary:
     # 'automacao_cron' | 'teste_trivial' | 'poucas_interacoes' | 'sem_obsidian'
     user_msg_count: int = 999        # Interações do usuário (999 = não enriquecido → mantém)
     tem_obsidian: bool = True        # Alguma mensagem referencia o vault Obsidian
+    motivo_fim: str = ""             # state.db sessions.end_reason (ex.: 'compression')
+    falha_compressao: str = ""       # state.db sessions.compression_failure_error (truncado)
+    compressao_ineficaz: int = 0     # sessions.compression_ineffective_count
+    compressao_streak: int = 0       # sessions.compression_fallback_streak
+    relevante_por_contexto: bool = False  # exceção do filtro: estouro de contexto em sessão longa
+
+    @property
+    def contexto_estourado(self) -> bool:
+        """True quando a sessão terminou (ou tentou terminar) por estouro de contexto.
+
+        Três sinais, todos específicos de compressão de contexto:
+          1. `end_reason == 'compression'` — auto-reset do gateway (sessão apagada);
+          2. contadores de compressão ineficaz/fallback > 0 — o compactador rodou
+             e não reduziu o contexto;
+          3. `compression_failure_error` com marcador de compressão/estouro
+             (stall, context_length_exceeded, compact...). Timeouts genéricos
+             ("Request timed out.") NÃO contam — não são falta de contexto.
+        """
+        if self.motivo_fim == "compression":
+            return True
+        if self.compressao_ineficaz > 0 or self.compressao_streak > 0:
+            return True
+        erro = self.falha_compressao.lower()
+        return any(m in erro for m in _MARCADORES_CONTEXTO)
+
+    @property
+    def tokens_contexto(self) -> int:
+        """Maior valor `tokens=N` achado em compression_failure_error (0 se não houver)."""
+        return max((int(n) for n in re.findall(r"tokens=(\d+)", self.falha_compressao)),
+                   default=0)
 
     @property
     def short_id(self) -> str:

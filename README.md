@@ -159,6 +159,8 @@ Extrai as sessões do Hermes, gera o **resumo final** (IA local) e renderiza o d
 - `poucas_interacoes` — ≤2 mensagens do usuário, ≤10 mensagens totais e ≤3 ferramentas
 - `sem_obsidian` — nenhuma mensagem referencia o vault (obsidian/vault/wikilinks); subagentes ficam de fora
 
+**Exceção — estouro de contexto (v3):** sessão que terminou por **estouro de contexto** (`end_reason='compression'`, auto-reset do gateway, ou falha de compressão registrada no turno) e é **importante** (≥30 mensagens ou ≥100 mil tokens de entrada) permanece no diário mesmo sem nenhuma referência ao vault — é o registro de que o Hermes apagou a sessão por tamanho. Aparece com 🧠 e o aviso "mantida no diário pela exceção de contexto".
+
 **Resumo final:** gerado por LLM local (Ollama, default `qwen2.5:3b`) com
 fallback heurístico quando offline. Gravado em `tb_sessao.resumo_final`
 (preservado entre syncs; resumos manuais nunca são sobrescritos).

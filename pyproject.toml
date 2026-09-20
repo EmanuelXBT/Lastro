@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lastro"
-version = "0.3.0"
+version = "0.4.0"
 description = "Organização para a era da IA — do state.db ao Obsidian"
 readme = "README.md"
 license = {text = "MIT"}

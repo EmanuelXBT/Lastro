@@ -7,6 +7,23 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [0.4.0] — 2026-09-20
+
+### Added
+- **Detecção de fim por estouro de contexto** — o coletor `sessions` passa a ler `end_reason`, `compression_failure_error`, `compression_ineffective_count` e `compression_fallback_streak` do `state.db`: sessões que morreram por compressão esgotada (auto-reset do gateway, `end_reason='compression'`) ou que falharam ao compactar no turno ganham 🧠 no diário, linha **Motivo do fim** (18 rótulos legíveis) e citação do registro bruto do Hermes para auditoria
+- Índice mestre: estatística **Sessões com estouro de contexto** e coluna de sinais (antes só o ⚠️ de erro)
+- Campos `motivo_fim` e `falha_compressao` em `tb_sessao` — migração **3** (`PRAGMA user_version` 2 → 3, idempotente em bancos existentes)
+- **Exceção de relevância para estouro de contexto**: sessão com estouro que seja importante (≥30 mensagens ou ≥100 mil tokens de entrada) volta ao diário mesmo sem referência ao vault, marcada com "mantida no diário pela exceção de contexto" — sem isso o filtro `sem_obsidian` escondia justamente as sessões apagadas por tamanho
+- `SessionSummary.contexto_estourado`, `.tokens_contexto`, `.relevante_por_contexto` e contadores de compressão no modelo
+
+### Fixed
+- Timeout genérico de requisição (`Request timed out.`) não é mais confundido com estouro de contexto — os marcadores aceitos são específicos de compressão (`stall_interrupted`, `context_length_exceeded`, `compression`, `compact`, `context length`)
+
+### Changed
+- Auditoria retroativa nas 414 sessões: **3 marcadas** — `20260920_124802_6c9280bd` (stall em 201.240 tokens), `20260629_133749_da86150f` (611.800 tokens de entrada) e `20260703_094846_e91ae3` (177 mensagens); as duas últimas voltaram do arquivo morto, onde estavam como `nao_relevante/sem_obsidian`, e agora têm nota diária
+
+---
+
 ## [0.3.0] — 2026-09-17
 
 ### Added
